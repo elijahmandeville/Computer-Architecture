@@ -11,28 +11,41 @@ class CPU:
         self.ram = [0] * 256
         self.reg = [0] * 8
         self.running = False
+        self.flag = [0] * 8
         self.pc = 0
+        self.sp = 7
+        self.reg[self.sp] = 0xf4
 
     def load(self):
         """Load a program into memory."""
 
-        address = 0
+        self.read_args()
 
-        # For now, we've just hardcoded a program:
+    def read_args(self):
+        params = sys.argv
 
-        program = [
-            # From print8.ls8
-            0b10000010,  # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111,  # PRN R0
-            0b00000000,
-            0b00000001,  # HLT
-        ]
+        if len(params) != 2:
+            print(f"Usage file.py filename")
+            sys.exit(1)
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        if len(params) == 2:
+            try:
+                with open(params[1]) as f:
+                    address = 0
+                    for line in f:
+                        split = line.split("#")
+                        num = split[0].strip()
+
+                        if num == '':
+                            continue
+                        num2 = int("0b"+num, 2)
+
+                        self.ram_write(address, num2)
+                        address += 1
+
+            except:
+                print("File not found")
+                sys.exit(2)
 
     def ram_read(self, mar):
         return self.ram[mar]
@@ -45,7 +58,19 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        # elif op == "SUB": etc
+            self.pc += 3
+
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
+            self.pc += 3
+
+        # elif op == "CMP":
+        #     if self.reg[reg_a] < self.reg[reg_b]:
+        #         self.flag = 0b00000100
+        #     elif self.reg[reg_a] > self.reg[reg_b]:
+        #         self.flag = 0b00000010
+        #     elif self.reg[reg_a] == self.reg[reg_b]:
+        #         self.flag = 0b00000001
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -75,7 +100,16 @@ class CPU:
 
         LDI = 0b10000010
         PRN = 0b01000111
+        MUL = 0b10100010
         HLT = 0b00000001
+        PUSH = 0b01000101
+        POP = 0b01000110
+        CALL = 0b01010000
+        RET = 0b00010001
+        ADD = 0b10100000
+
+        self.load()
+        self.trace()
 
         while self.running:
             instruction = self.ram_read(self.pc)
@@ -85,8 +119,46 @@ class CPU:
             if instruction == LDI:
                 self.reg[op_a] = op_b
                 self.pc += 3
+
             elif instruction == PRN:
                 print(self.reg[op_a])
                 self.pc += 2
+
+            elif instruction == MUL:
+                self.alu("MUL", op_a, op_b)
+
             elif instruction == HLT:
                 self.running = False
+
+            elif instruction == PUSH:
+                self.reg[self.sp] -= 1
+                op_a = self.ram_read(self.pc + 1)
+
+                reg_val = self.reg[op_a]
+                self.ram_write(self.reg[self.sp], reg_val)
+                self.pc += 2
+
+            elif instruction == POP:
+                op_a = self.ram_read(self.pc + 1)
+                popped_val = self.ram_read(self.reg[self.sp])
+                self.reg[op_a] = popped_val
+                self.reg[self.sp] += 1
+                self.pc += 2
+
+            elif instruction == ADD:
+                self.alu("ADD", op_a, op_b)
+
+            elif instruction == CALL:
+                address = self.pc + 2
+                self.reg[self.sp] -= 1
+                self.ram_write(self.reg[self.sp], address)
+                self.pc = self.reg[op_a]
+
+            elif instruction == RET:
+                self.pc = self.ram_read(self.reg[self.sp])
+                self.reg[self.sp] += 1
+
+
+cpu = CPU()
+
+cpu.run()
