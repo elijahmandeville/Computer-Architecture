@@ -64,13 +64,33 @@ class CPU:
             self.reg[reg_a] *= self.reg[reg_b]
             self.pc += 3
 
-        # elif op == "CMP":
-        #     if self.reg[reg_a] < self.reg[reg_b]:
-        #         self.flag = 0b00000100
-        #     elif self.reg[reg_a] > self.reg[reg_b]:
-        #         self.flag = 0b00000010
-        #     elif self.reg[reg_a] == self.reg[reg_b]:
-        #         self.flag = 0b00000001
+        elif op == "CMP":
+            if self.reg[reg_a] < self.reg[reg_b]:
+                self.flag[-3] = 1
+
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                self.flag[-2] = 1
+
+            elif self.reg[reg_a] == self.reg[reg_b]:
+                self.flag[-1] = 1
+            self.pc += 3
+
+        elif op == "AND":
+            self.reg[reg_a] &= self.reg[reg_b]
+            self.pc += 3
+
+        elif op == "OR":
+            self.reg[reg_a] |= self.reg[reg_b]
+            self.pc += 3
+
+        elif op == "XOR":
+            self.reg[reg_a] ^= self.reg[reg_b]
+            self.pc += 3
+
+        elif op == "NOT":
+            self.reg[reg_a] = ~ self.reg[reg_a]
+            self.pc += 2
+
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -107,6 +127,14 @@ class CPU:
         CALL = 0b01010000
         RET = 0b00010001
         ADD = 0b10100000
+        CMP = 0b10100111
+        JMP = 0b01010100
+        JEQ = 0b01010101
+        JNE = 0b01010110
+        AND = 0b10101000
+        OR = 0b10101010
+        XOR = 0b10101011
+        NOT = 0b01101001
 
         self.load()
         self.trace()
@@ -157,6 +185,36 @@ class CPU:
             elif instruction == RET:
                 self.pc = self.ram_read(self.reg[self.sp])
                 self.reg[self.sp] += 1
+
+            elif instruction == CMP:
+                self.alu("CMP", op_a, op_b)
+
+            elif instruction == JMP:
+                self.pc = self.reg[op_a]
+
+            elif instruction == JEQ:
+                if self.flag[-1] == 1:
+                    self.pc = self.reg[op_a]
+                else:
+                    self.pc += 2
+
+            elif instruction == JNE:
+                if self.flag[-1] == 0:
+                    self.pc = self.reg[op_a]
+                else:
+                    self.pc += 2
+
+            elif instruction == AND:
+                self.alu("AND", op_a, op_b)
+
+            elif instruction == OR:
+                self.alu("OR", op_a, op_b)
+
+            elif instruction == XOR:
+                self.alu("XOR", op_a, op_b)
+
+            elif instruction == NOT:
+                self.alu("NOT", op_a, op_b)
 
 
 cpu = CPU()
